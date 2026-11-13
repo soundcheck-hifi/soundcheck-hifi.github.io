@@ -715,6 +715,39 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;color:var(--ink);margin:0;l
 .card .cfacts dt{color:var(--ink-3);overflow-wrap:anywhere;hyphens:auto} .card .cfacts dd{margin:0;color:var(--ink-2)}
 .card p.csrc{font-size:13px;color:var(--ink-3);margin-top:6px}
 .card p.csrc a{color:inherit}
+
+/* Ihre Optionen */
+.opts-sec .opt-price{display:block;margin-top:8px;color:var(--ink-3);font-size:14.5px}
+.oblock{padding:28px 0;border-top:1px solid var(--rule)}
+.oblock:first-of-type{border-top:1px solid var(--ink)}
+.ob-h{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.ob-h h3{font-size:24px;margin:0}
+.ob-need{color:var(--ink-3);font-size:14.5px}
+.ob-n{margin-left:auto;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok);font-weight:600}
+.ogrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.ocard{background:var(--card);border:1px solid var(--rule);border-radius:var(--r-lg);padding:18px;display:flex;flex-direction:column;gap:8px;transition:box-shadow .3s var(--ease),border-color .3s}
+.ocard:hover{box-shadow:var(--sh-2);border-color:var(--rule-2)}
+.ocard.more{display:none}.oblock.all .ocard.more{display:flex}
+.oc-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.oc-t{font-size:13px;color:var(--ink-3)}
+.obadge{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.obadge.ok{color:var(--ok);background:var(--ok-soft)}
+.obadge.tight{color:var(--brass);background:var(--brass-soft)}
+.ocard h4{margin:0;font-size:19px;line-height:1.2}.ocard h4 a{color:inherit;text-decoration:none}.ocard h4 a:hover{text-decoration:underline}
+.oc-why{margin:0;font-size:14.5px;color:var(--ink-2);flex:1}
+.oc-foot{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:4px}
+.oc-src{font-size:12.5px;color:var(--ink-3)}
+.ocard .btn.sm{white-space:normal;text-align:center;line-height:1.25}
+.opt-all{margin-top:14px}
+.oempty{background:var(--card);border:1px dashed var(--rule-2);border-radius:var(--r-lg);padding:20px 22px;display:flex;gap:20px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.oempty p{margin:0;max-width:44em;color:var(--ink-2);font-size:15px}.oempty b{color:var(--ink);display:block;margin-bottom:4px}
+.ob-hid{font-size:13.5px;color:var(--ink-3);margin:12px 0 0}
+.kit-a{display:contents;color:inherit;text-decoration:none}
+.kit li.add .kit-a span i{text-decoration:underline;text-underline-offset:3px}
+@media (max-width:1100px){.ogrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.ogrid{grid-template-columns:1fr}.ob-n{margin-left:0}.ocard{padding:16px}}
+
+.oempty .ob-hint{display:block;margin-top:6px;color:var(--ok);font-size:14px}
 </style></head><body>
 <header class="top">
   <div class="wrap">
@@ -996,7 +1029,7 @@ document.addEventListener("click",function(e){
   var g=e.target.closest("[data-go]"); if(g){ e.preventDefault();
     if(g.dataset.anchor){ go("start"); setTimeout(function(){ var a=document.getElementById(g.dataset.anchor); a&&a.scrollIntoView({behavior:"smooth"}); },80); return; }
     go(g.dataset.go==="q1"?"frage-1":g.dataset.go); return; }
-  var c=e.target.closest("[data-contact]"); if(c){ e.preventDefault(); openContact({kind:c.dataset.contact,id:c.dataset.id}); return; }
+  var c=e.target.closest("[data-contact]"); if(c){ e.preventDefault(); openContact({kind:c.dataset.contact,id:c.dataset.id,what:c.dataset.what}); return; }
   if(e.target.closest("[data-close]")) closeModal();
 });
 
@@ -1831,6 +1864,95 @@ function stockCount(){
   if(el) el.textContent=geraete+" Geräte"+(media?" · 265 Musikkassetten":"")+" · "+ver+" mit belegten Daten"+(prep?" · "+prep+" in Aufbereitung":"");
 }
 
+/* Konkrete Optionen je Baustein: zuerst Bestand, dann (falls vorhanden) belegter Katalog. Keine Preise, keine erfundenen Modelle. */
+var CATALOG=(SC_DATA.catalog||[]); /* nur belegte Modelle, aktuell leer */
+var OPT_BLOCKS=[
+  {key:"amp",types:["amp","receiver"],h:"Verstärker",what:"einen passenden Verstärker"},
+  {key:"spk",types:["speakers"],h:"Lautsprecher",what:"passende Lautsprecher"},
+  {key:"cd",types:["cd"],h:"CD-Spieler",what:"einen passenden CD-Spieler"},
+  {key:"tape",types:["tape","reel"],h:"Kassettendeck / Tonband",what:"ein passendes Kassettendeck"},
+  {key:"tt",types:["turntable"],h:"Plattenspieler",what:"einen passenden Plattenspieler"},
+  {key:"sub",types:["sub"],h:"Subwoofer",what:"einen passenden Subwoofer"}
+];
+function fval(d,re){ var a=(d.specs||[]).concat(d.facts||[]); for(var i=0;i<a.length;i++){ if(re.test(a[i].label)&&!/^nicht zutreffend/i.test(a[i].value)) return a[i].value; } return ""; }
+function dimsOf(d){
+  var m=DEVDIM[d.id]; if(m) return {w:m.w,d:m.d};
+  var v=fval(d,/Maße/); var r=/(\d{3})\s*[x×]\s*(\d{2,3})\s*[x×]\s*(\d{3})\s*mm\s*\((?:B\s*[x×]\s*H\s*[x×]\s*T|BxHxT|B × H × T)\)/.exec(v);
+  return r?{w:+r[1]/10,d:+r[3]/10}:null;
+}
+function watt8(d){ var r=/(\d+)\s*W[^,;]*?8\s*Ω/.exec(fval(d,/Leistung/)); return r?+r[1]:0; }
+function optEval(d,blk,R){
+  var why=[], tight=[], amp=R.devAmp, G=S.genres||[], hh=G.indexOf("hiphop")>-1||G.indexOf("elektro")>-1;
+  if(!hasData(d)) return {s:"knapp",why:["Gerätetyp passt, technische Daten nennen wir auf Anfrage"]};
+  var dm=dimsOf(d);
+  if(dm){ if(dm.w>S.st.rackW||dm.d>S.st.rackD+3) return null;
+    if(dm.d>S.st.rackD) tight.push("Tiefe "+fmtcm(dm.d)+" cm bei "+S.st.rackD+" cm Möbeltiefe"); }
+  if(blk.key==="amp"){
+    var inp=fval(d,/Eingänge/), out=fval(d,/Ausgänge/), w=watt8(d);
+    if(R.src("vinyl")){ if(/phono/i.test(inp)) why.push("Phono-Eingang vorhanden"); else tight.push("Kein Phono-Eingang belegt, Vorstufe nötig"); }
+    if(w) why.push("für 8 Ω geeignet, "+w+" W je Kanal");
+    if(hh&&w>=80) why.push("Leistungsreserve für kräftigen Bass");
+    if(R.useSub) why.push(/pre-?out/i.test(out)?"Pre-Out für den Subwoofer":"Subwoofer über Lautsprecherpegel");
+    if(R.src("cd")&&/CD/i.test(inp)&&why.length<3) why.push("CD-Eingang vorhanden");
+  } else if(blk.key==="cd"){
+    var o=fval(d,/Ausg/);
+    if(amp){ var ai=fval(amp,/Eingänge/); if(/CD|AUX|Line/i.test(ai)) why.push("Passt an den CD-Eingang Ihres "+amp.model); }
+    else why.push("Cinch-Ausgang an CD oder Line");
+    if(/2(,0)?\s*V/.test(o)) why.push("Line-Ausgang 2 V");
+    if(/optisch|koax/i.test(o)) why.push("Digitalausgang vorhanden");
+  } else if(blk.key==="tape"){
+    var lw=fval(d,/Laufwerk|Tonköpfe|Typ/)+" "+fval(d,/Rauschminderung|Laufwerk/);
+    if(amp){ var ai2=fval(amp,/Eingänge/)+" "+fval(amp,/Ausgänge/); if(/Tape|Rec/i.test(ai2)) why.push("Tape-Anschluss an Ihrem "+amp.model); }
+    else why.push("an Tape / Rec-Out des Verstärkers");
+    if(/3\s*Tonköpfe|3 Köpfe|Dreikopf/i.test(lw+" "+fval(d,/Typ/))) why.push("3 Tonköpfe");
+    if(/Dolby B und C|B, C|B\/C|B \+ C/i.test(lw+" "+fval(d,/Rauschminderung/))) why.push("Dolby B und C");
+    if(d.type==="reel") why.push("Tonbandmaschine");
+  }
+  if(inPrep(d)) tight.push("derzeit in Aufbereitung");
+  return {s:tight.length?"knapp":"ok",why:tight.concat(why)};
+}
+function optionsFor(blk,R){
+  var list=[], hidden=[];
+  DEVICES.forEach(function(d){
+    if(d.inStock===false||blk.types.indexOf(d.type)<0||(R.dev&&R.dev.id===d.id)) return;
+    var e=optEval(d,blk,R); if(!e){ hidden.push(d); return; }
+    list.push({d:d,e:e,stock:true});
+  });
+  CATALOG.forEach(function(d){ if(blk.types.indexOf(d.type)<0) return; var e=optEval(d,blk,R); if(e) list.push({d:d,e:e,stock:false}); });
+  function rank(x){ return (x.stock?0:100)+(inPrep(x.d)?20:0)+(x.e.s==="ok"?0:10)+(hasSpecs(x.d)?0:hasFacts(x.d)?1:5); }
+  list.sort(function(a,b){ return rank(a)-rank(b)||deviceName(a.d).localeCompare(deviceName(b.d),"de"); });
+  return {list:list,hidden:hidden};
+}
+function optCard(x){
+  var d=x.d, ok=x.e.s==="ok";
+  return '<article class="ocard"><div class="oc-top"><span class="oc-t">'+esc(d.typeLabel)+(d.years?' · '+esc(d.years):'')+'</span><span class="obadge '+(ok?"ok":"tight")+'">'+(ok?"Passt":"Passt knapp")+'</span></div>'+
+    '<h4><a href="#geraet-'+d.id+'">'+esc(deviceName(d))+'</a></h4><p class="oc-why">'+esc(x.e.why.slice(0,2).join(" · "))+'</p>'+
+    '<div class="oc-foot"><span class="oc-src">'+(x.stock?(inPrep(d)?"Unser Bestand · in Aufbereitung":"Unser Bestand"):"Katalog")+'</span>'+(x.stock?inquireBtn(d,"btn sm"):'')+'</div></article>';
+}
+function optionsHTML(R){
+  var keys={}; R.needs.forEach(function(n){ if(n.key!=="sub"||n.rec!=="free") keys[n.key]=n; });
+  var blocks=OPT_BLOCKS.filter(function(b){return keys[b.key]});
+  if(!blocks.length) return "";
+  var bud=S.budget==null?"":lab("budget",S.budget);
+  return '<section class="sec opts-sec" id="r-opts"><div class="wrap"><div class="sec-head"><div><p class="eyebrow">Ihre Optionen</p><h2 class="d2">Alles, was zu Ihrem Plan passt.</h2></div><p>Je Baustein zuerst passende Geräte aus unserem Bestand, geprüft an Raum, Möbel, Musik und Ihrer Anlage. <span class="opt-price">Preis auf Anfrage – passend zu Ihrem Rahmen'+(bud?' ('+esc(bud)+')':'')+'.</span></p></div>'+
+  blocks.map(function(b){
+    var n=keys[b.key], o=optionsFor(b,R), L=o.list;
+    var head='<div class="ob-h"><h3>'+esc(b.h)+'</h3><span class="ob-need">Gesucht: '+esc(n.kit||n.title)+'</span>'+(L.length?'<span class="ob-n">'+L.length+' passend</span>':'')+'</div>';
+    var body=L.length? '<div class="ogrid">'+L.map(function(x,i){ return i<4?optCard(x):optCard(x).replace('<article class="ocard"','<article class="ocard more"'); }).join("")+'</div>'+
+        (L.length>4?'<button type="button" class="linkbtn opt-all" aria-expanded="false" data-n="'+L.length+'">Alle passenden anzeigen ('+L.length+')</button>':'')
+      : '<div class="oempty"><p><b>Aktuell nicht im Bestand – gern suchen wir passend für Sie.</b> Wir nennen keine Modelle, die wir nicht geprüft haben. Schreiben Sie uns, wir suchen nach Ihrem Plan: '+esc(n.kit||n.title)+'.</p><button class="btn sm" data-contact="suche" data-what="'+esc(b.what)+'">Passend suchen lassen</button></div>';
+    var am=R.devAmp, hint="";
+    if(am&&b.key==="spk"&&fval(am,/Impedanz/)) hint="Ihr "+am.model+" ist laut Datenblatt für "+fval(am,/Impedanz/).split(";")[0]+" angegeben, wir suchen mit 8 Ω.";
+    if(am&&b.key==="sub") hint=/pre-?out/i.test(fval(am,/Ausgänge/))?"Ihr "+am.model+" hat laut Datenblatt einen Pre-Out für den Subwoofer.":"Anschluss über den Lautsprecherpegel-Eingang des Subwoofers.";
+    if(hint&&!L.length) body=body.replace('</p><button','<span class="ob-hint">'+esc(hint)+'</span></p><button');
+    var hid=o.hidden.length?'<p class="ob-hid">Ausgeblendet, weil zu groß für Ihr Möbel ('+S.st.rackW+' × '+S.st.rackD+' cm): '+esc(o.hidden.map(deviceName).join(", "))+'.</p>':'';
+    return '<div class="oblock" id="opt-'+b.key+'">'+head+body+hid+'</div>';
+  }).join("")+'</div></section>';
+}
+function bindOptions(root){
+  $$(".opt-all",root).forEach(function(b){ b.onclick=function(){ var bl=b.closest(".oblock"), o=bl.classList.toggle("all"); b.setAttribute("aria-expanded",o); b.textContent=o?"Weniger anzeigen":"Alle passenden anzeigen ("+b.dataset.n+")"; }; });
+}
+
 function tierHTML(n,t){
   var names={free:"Kostenlos",mid:"Günstig & gut",hi:"Höherwertig"}, rec=n.rec===t.k;
   return '<div class="tier'+(rec?" rec":"")+'"><div class="lbl"><span>'+names[t.k]+'</span>'+(rec?'<span class="badge">Empfohlen</span>':'')+'</div><p>'+esc(t.p)+'</p>'+
@@ -1872,8 +1994,9 @@ function kitHTML(R){
   if(R.devAmp) it.push(["amp",R.devAmp.brand+" "+R.devAmp.model,"vorhanden",0]); else if(R.own("amp")) it.push(["amp","Verstärker","vorhanden",0]);
   if(R.own("speakers")) it.push(["speakers","Lautsprecher","vorhanden",0]);
   if(R.dev&&!R.devAmp) it.push([R.dev.type==="cd"?"cdp":"tape",R.dev.brand+" "+R.dev.model,"vorhanden",0]);
-  R.needs.forEach(function(n){ if(n.short && n.rec!=="free") it.push([KIT_ICON[n.key]||"amp",n.kit||n.title,"ergänzen",1]); });
-  return '<ul class="kit">'+it.map(function(x){return '<li class="'+(x[3]?"add":"have")+'">'+(T[x[0]]||"")+'<span><b>'+esc(x[1])+'</b><i>'+x[2]+'</i></span></li>'}).join("")+'</ul>';
+  R.needs.forEach(function(n){ if(n.short && n.rec!=="free"){ var b=OPT_BLOCKS.filter(function(x){return x.key===n.key})[0], c=b?optionsFor(b,R).list.length:-1;
+    it.push([KIT_ICON[n.key]||"amp",n.kit||n.title,c>0?c+" passend im Bestand":c===0?"gern für Sie gesucht":"ergänzen",1,b?"opt-"+n.key:null]); } });
+  return '<ul class="kit">'+it.map(function(x){return '<li class="'+(x[3]?"add":"have")+'">'+(x[4]?'<a class="kit-a" href="#'+x[4]+'">':'')+(T[x[0]]||"")+'<span><b>'+esc(x[1])+'</b><i>'+x[2]+'</i></span>'+(x[4]?'</a>':'')+'</li>'}).join("")+'</ul>';
 }
 function renderResult(){
   var R=compute(), g=R.g, root=$("#s-result"), A=altFor(R), stock=stockFor(R,A), devAmp=R.devAmp;
@@ -1889,8 +2012,9 @@ function renderResult(){
   var fz=R.fits[R.cls]; checks.push({s:fz.s==="gut"?"okk":"chk",h:"Größe im Raum",t:SPK[R.cls].n+": "+fz.why+" Richtwerte.",v:{gut:"Passt gut",knapp:"Passt knapp",nein:"Zu groß"}[fz.s]});
   checks.push({s:"okk",h:"Kabel",t:"2 × 2,5 mm² bis etwa 5 m Länge. Polarität beachten: + an +.",v:"Passt"});
   var pit=R.dev&&R.dev.mismatches&&R.dev.mismatches[0]?{h:R.dev.mismatches[0].title,p:R.dev.mismatches[0].text}:{h:"4-Ohm-Boxen an einem Verstärker, der nur für 8 Ω angegeben ist.",p:"Bei 4 Ω muss der Verstärker etwa doppelt so viel Strom liefern. Er wird warm, begrenzt oder klingt angestrengt. Auf Dauer kann er Schaden nehmen."};
-  var nav=[["r-top","Empfehlung"],["r-profil","Mein Hörprofil"],["r-plan","Raumplan"],["r-studio","Aufstellen"],["r-needs","Was Sie brauchen"],["r-check","Passung"]];
-  if(A) nav.push(["r-alt","Alternativen"]); if(stock.length||R.hidden.length) nav.push(["r-stock","Aus unserem Bestand"]); nav.push(["r-take","Zum Mitnehmen"]);
+  var optHTML=optionsHTML(R);
+  var nav=[["r-top","Empfehlung"]].concat(optHTML?[["r-opts","Ihre Optionen"]]:[]).concat([["r-profil","Mein Hörprofil"],["r-plan","Raumplan"],["r-studio","Aufstellen"],["r-needs","Was Sie brauchen"],["r-check","Passung"]]);
+  if(A) nav.push(["r-alt","Alternativen"]); if(!optHTML&&(stock.length||R.hidden.length)) nav.push(["r-stock","Aus unserem Bestand"]); nav.push(["r-take","Zum Mitnehmen"]);
   var sumRows=Q.map(function(_,j){return j}).map(function(j){return '<dt>'+Q[j].label+'</dt><dd>'+esc(answerText(j))+'</dd><dd><button class="chg" data-step="'+j+'">Ändern</button></dd>'}).join("");
   var cl=[g.d+" cm von der Rückseite der Boxen zur Wand","Boxenabstand Mitte zu Mitte: "+g.S+" cm","Hörplatz "+g.D+" cm vor der Boxenfront","Beide Boxen "+g.toe+"° zum Hörplatz eingedreht",
           "Impedanz geprüft: Boxen 8 Ω"+(devAmp?", "+devAmp.model+" "+spec(devAmp,/Impedanz/).split(";")[0]:""),"Kabel 2 × 2,5 mm², + an +, − an −"];
@@ -1908,6 +2032,7 @@ function renderResult(){
    '<aside class="sum"><span class="caps">Ihr Plan</span><p class="sum-note">Preise nennen wir auf Anfrage. Verfügbarkeit klären wir schriftlich.</p>'+
     '<dl>'+sumRows+'</dl><div class="btns no-print"><a class="btn ghost sm" href="#r-take">Plan per WhatsApp senden</a></div></aside></div></div>'+
   '<nav class="lnav no-print" aria-label="Abschnitte"><div class="wrap">'+nav.map(function(n,i){return '<a href="#'+n[0]+'"'+(i===0?' class="act"':'')+'>'+n[1]+'</a>'}).join("")+'<span class="sep"></span><button class="linkbtn print" data-print>'+I.print+'Drucken</button></div></nav>'+
+  optHTML+
   '<section class="sec prof-sec" id="r-profil"><div class="wrap"><div class="sec-head"><div><p class="eyebrow">Mein Hörprofil</p><h2 class="d2">Ihr Plan, nach Ihren Gewohnheiten.</h2></div><p>Ändern Sie jederzeit eine Angabe. Raumplan und Bausteine passen sich sofort an. <span class="pst" id="prof-status" role="status">'+I.ok+'Plan aktualisiert</span></p></div>'+profileHTML(R)+'</div></section>'+
   '<section class="sec" id="r-plan"><div class="wrap"><div class="sec-head"><div><p class="eyebrow">Raumplan</p><h2 class="d2">So stellen Sie die Anlage auf.</h2></div><p>Gezeichnet für '+fmt(R.L)+' × '+fmt(R.W)+' cm, etwa '+m2(R.area)+' m². Alle Maße in Zentimetern, Winkel in Grad.</p></div>'+
    '<div class="plan-grid"><div class="plan-card"><div class="pl-d">'+plan(R.L,R.W,{compact:R.compact,flex:R.flex,mirror:R.precise,sub:R.useSub})+'</div><div class="pl-m">'+plan(R.L,R.W,{compact:R.compact,small:true,flex:R.flex,mirror:R.precise,sub:R.useSub})+'</div></div><div class="notes">'+
@@ -1926,7 +2051,7 @@ function renderResult(){
    '<div class="checks"><div class="ctable">'+checks.map(function(c){return '<div class="crow '+c.s+'">'+(c.s==="okk"?I.ok:I.look)+'<div><b>'+esc(c.h)+'</b><span class="vv">'+esc(c.v)+'</span></div><span>'+esc(c.t)+'</span></div>'}).join("")+'</div>'+
    '<div class="pitfall"><span class="caps">'+I.warn+'Typischer Fehlgriff</span><h3>'+esc(pit.h)+'</h3><p>'+esc(pit.p)+'</p><p>Die Impedanz ist keine Geschmacksfrage, sondern eine Lastfrage.</p></div></div></div></section>'+
   (A?'<section class="sec" id="r-alt"><div class="wrap"><div class="sec-head"><div><p class="eyebrow">Alternative Wege zum gleichen Ziel</p><h2 class="d2">'+esc(A.goal)+'</h2></div><p>'+esc(A.intro)+'</p></div>'+altHTML(A)+'<p class="decide">Beide Wege führen ans Ziel. Welcher besser zu Ihnen passt, entscheiden Sie.</p></div></section>':'')+
-  (stock.length||(R.hidden&&R.hidden.length)?'<section class="sec tint" id="r-stock"><div class="wrap"><div class="sec-head"><div><p class="eyebrow">Passend für Sie aus unserem Bestand</p><h2 class="d2">Geprüft, und es passt zu Ihrem Plan.</h2></div><p>Geräte aus unserem Bestand, die zu einer Position Ihres Plans passen. Ohne belegte Maße geben wir kein Urteil zur Möbelgröße. Kein Muss, eine Möglichkeit.'+(R.hidden&&R.hidden.length?' Ausgeblendet, weil es nicht auf Ihr Möbel ('+S.st.rackW+' × '+S.st.rackD+' cm) passt: '+esc(R.hidden.map(function(d){return d.brand+" "+d.model}).join(", "))+'.':'')+'</p></div>'+
+  (!optHTML&&(stock.length||(R.hidden&&R.hidden.length))?'<section class="sec tint" id="r-stock"><div class="wrap"><div class="sec-head"><div><p class="eyebrow">Passend für Sie aus unserem Bestand</p><h2 class="d2">Geprüft, und es passt zu Ihrem Plan.</h2></div><p>Geräte aus unserem Bestand, die zu einer Position Ihres Plans passen. Ohne belegte Maße geben wir kein Urteil zur Möbelgröße. Kein Muss, eine Möglichkeit.'+(R.hidden&&R.hidden.length?' Ausgeblendet, weil es nicht auf Ihr Möbel ('+S.st.rackW+' × '+S.st.rackD+' cm) passt: '+esc(R.hidden.map(function(d){return d.brand+" "+d.model}).join(", "))+'.':'')+'</p></div>'+
    '<div class="cards">'+stock.map(function(d){return card(d,fitText(d,R))}).join("")+'</div></div></section>':'')+
   '<section class="sec" id="r-take"><div class="wrap"><div class="sec-head"><div><p class="eyebrow">Zum Mitnehmen</p><h2 class="d2">Drei Regeln, die bleiben.</h2></div></div>'+
    '<div class="rules"><div><span class="n">1</span><h3>'+g.d+' cm von der Wand.</h3><p>Sonst dröhnt der Bass, und Stimmen verlieren ihre Kontur.</p></div><div><span class="n">2</span><h3>Abstand gleich Abstand.</h3><p>Boxen zueinander etwa so weit wie zum Hörplatz, hier '+g.S+' und '+g.D+' cm.</p></div><div><span class="n">3</span><h3>'+esc(ampRule)+'</h3><p>Die passende Last hält den Verstärker kühl und den Klang entspannt.</p></div></div>'+
@@ -1934,7 +2059,8 @@ function renderResult(){
    '<div class="stack no-print"><div class="panel"><h3>Plan per WhatsApp senden</h3><p>Wir erhalten Ihren Plan schriftlich: Raum, Geräte und Musik, so wie Sie ihn eben gesehen haben.</p>'+waCta(waHref(composeWa({lead:"bitte senden Sie mir meinen Plan.",includePlan:true})))+'</div>'+
    '<div class="panel dark"><div class="who"><div class="av">S</div><div><h3 style="margin:0">Fragen Sie uns direkt</h3><span style="font-size:14.5px;color:#C4CDD8">Persönlich, ohne Callcenter</span></div></div><p>Sie möchten ein Gerät hören, einen Termin vereinbaren oder sind bei einem Detail unsicher? Schreiben Sie uns.</p><button class="btn" data-contact="plan">Nachricht schreiben</button></div></div></div></div></section>'+
   '<div class="wrap"><p class="disc">Das ist eine Ersteinschätzung aus Ihren Angaben, keine akustische Einmessung. Die Maße gelten für einen Rechteckraum. Gerätedaten stammen aus den im Datenblatt genannten Quellen. Preise nennen wir auf Anfrage.</p></div>';
-  bindProfile(root); studioInit(R);
+  bindProfile(root); bindOptions(root); studioInit(R);
+  $$(".kit-a",root).forEach(function(a){ a.onclick=function(e){ e.preventDefault(); var t=document.getElementById(a.getAttribute("href").slice(1)); t&&t.scrollIntoView({behavior:"smooth"}); }; });
   $$(".chg",root).forEach(function(b){ b.onclick=function(){ go("frage-"+(+b.dataset.step+1)); }; });
   $$(".more-btn",root).forEach(function(b){ b.onclick=function(){ var n=b.closest(".need"), o=n.classList.toggle("open"); b.setAttribute("aria-expanded",o); b.textContent=o?"Weniger anzeigen":"Weitere Wege anzeigen"; }; });
   $$("[data-print]",root).forEach(function(b){ b.onclick=function(){ window.print(); }; });
@@ -1978,6 +2104,7 @@ function openContact(o){
   if(o.kind==="geraet"&&d){ title="Verfügbarkeit & Details anfragen"; intro=deviceName(d)+(d.typeLabel?" · "+d.typeLabel:""); lead="ich interessiere mich für "+(d.type==="media"?deviceName(d):"den "+deviceName(d))+(d.typeLabel?" ("+d.typeLabel+")":"")+". Bitte teilen Sie mir mit, ob das Gerät verfügbar ist, und senden Sie mir Zustand und Fotos."; }
   else if(o.kind==="melden"&&d){ title="Benachrichtigen, wenn verfügbar"; intro=d.brand+" "+d.model; lead="bitte informieren Sie mich, sobald ein "+d.brand+" "+d.model+" verfügbar ist."; }
   else if(o.kind==="pruefen"){ title="Modell prüfen lassen"; intro="Wir prüfen die Daten aus belegten Quellen und melden uns schriftlich."; lead="bitte prüfen Sie dieses Modell"+(o.text?": "+o.text:"")+"."; }
+  else if(o.kind==="suche"){ title="Passend für Sie suchen"; intro="Wir suchen nach Ihrem Plan und melden uns schriftlich."; lead="bitte suchen Sie für mich "+(o.what||"passende Geräte")+" zu meinem Plan."; }
   else if(o.kind==="plan"){ title="Fragen Sie uns direkt"; intro="Zu Ihrem Plan. Wir antworten persönlich und schriftlich."; lead="ich habe eine Frage zu meinem Plan."; }
   else { title="Fragen Sie uns direkt"; intro="Wir antworten persönlich und schriftlich, in der Regel innerhalb von 24 Stunden."; lead="ich möchte Sie zu SoundCheck kontaktieren."; }
   $("#m-body").innerHTML='<p class="eyebrow">Persönlich beantwortet</p><h3 id="m-title">'+esc(title)+'</h3><p>'+esc(intro)+'</p>'+
